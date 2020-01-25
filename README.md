@@ -1,7 +1,7 @@
 # DNS record updater for NSD
 
 ## nsdで動的なレコード更新を行う
-A/AAAA レコードの更新のみを対象にする
+A/AAAA/TXT レコードの更新のみを対象にする
 
 ## 特徴
 ssh 経由で更新する場合、'src' を指定すると、接続元IPアドレスを設定可能
@@ -18,6 +18,21 @@ ssh 経由で更新する場合、'src' を指定すると、接続元IPアド�
 
 また、sshの接続元アドレスを指定したい場合、IPアドレスの代わりに 'src' を指定します。<br>
 % ssh dns.example.jp /etc/nsd/nsd-upd.py targ-name src /etc/nsd/zones/example.jp
+
+## LetsEncrypt(certbot)のTXTレコードによる更新に使うには
+certbotでワイルドカード対応したい場合、TXTレコード更新が必要になります。<br>
+1. あらかじめnsdのzoneファイルに、末尾ピリオド付きのFQDNで TXTレコードを登録しておきます。<br>
+ _acme-challenge.ipmsg.org.  10  IN  TXT  dummy_value<br>
+
+2. certbotでdns利用で更新リクエストを出すと TXTレコードにセットすべき値が表示されて待ち状態になるので、下記を実行します。<br>
+ nsd-upd.py _acme-challenge.ipmsg.org. txt=(value) /etc/nsd/zones/(zone-file)<br>
+この後に、certbotの実行を継続すればOK。
+
+3. 自動化するには upd-txt.sh といった名前で下記のような内容のscriptを作っておき、certbotの --manual-auth-hook に指定すればOK。<br>
+ #!/bin/sh<br>
+ /etc/nsd/nsd-upd.py _acme-challenge.$CERTBOT_DOMAIN. txt=$CERTBOT_VALIDATION /etc/nsd/zones/(zone-file)<br>
+ 
+ （個人的にはそれ以外に、--expand --non-interactive --manual-public-ip-logging-ok --manual --preferred-challenges dns --keep-until-expiring --post-hook も指定）<br>
 
 ## 付記
 zoneファイルが更新された場合、自動的に、serial番号を上げた上で、nsd-control reload を実行します。<br>
