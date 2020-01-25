@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# DNS record updater for NSD by H.Shirouzu 2019/09/02
+# DNS record updater for NSD by H.Shirouzu 2019/09/02 (update 2020/01/25)
 
 import os
 import sys
@@ -19,18 +19,21 @@ def new_serial(old_s):
 		new_s = b'%10d' % (cur_val + 1)
 	return new_s
 
-def main(name, addr, zone):
-	if addr == "src":
-		addr = os.environ["SSH_CONNECTION"].split()[0]
-
-	if addr.find(":") >= 0:
+def main(name, val, zone):
+	if val == "src":
+		rec = b'A'
+		val = os.environ["SSH_CONNECTION"].split()[0]
+	elif val.find("txt=") >= 0:
+		rec = b'TXT'
+		val = val[4:]
+	elif val.find(":") >= 0:
 		rec = b'AAAA'
-		socket.inet_pton(socket.AF_INET6, addr)
+		socket.inet_pton(socket.AF_INET6, val) # verify only
 	else:
 		rec = b'A'
-		socket.inet_pton(socket.AF_INET, addr)
+		socket.inet_pton(socket.AF_INET, val) # verify only
 
-	addr = addr.encode("utf8")
+	val = val.encode("utf8")
 	name = name.encode("utf8")
 
 	d = open(zone, "rb").read()
@@ -44,26 +47,27 @@ def main(name, addr, zone):
 	d = serial_re.sub(rb'\g<1>%s\g<3>' % serial, d, 1)
 
 	# ターゲット検索
-	dyn_re = re.compile(rb'(\n%s[ \t]+[ \t0-9]*IN[ \t]+%s[ \t]+)([0-9a-f.:]+)([^\n]*\n)' % (re.escape(name), rec), re.I)
+	dyn_re = re.compile(rb'(\n%s[ \t]+[ \t0-9]*IN[ \t]+%s[ \t]+)([0-9a-z.:_\-]+)([^\n]*\n)' % (re.escape(name), rec), re.I)
 	m = dyn_re.search(d)
 	if not m:
 		raise Exception("host not found")
 
-	old_addr = m.groups()[1]
-	if old_addr == addr:
+	old_val = m.groups()[1]
+	if old_val == val:
 		raise Exception("not modified")
 
-	d = dyn_re.sub(rb'\g<1>%s\g<3>' % addr, d, 1)
+	d = dyn_re.sub(rb'\g<1>%s\g<3>' % val, d, 1)
 
 	open(zone, "wb").write(d)
 	if RELOAD_CMD:
 		os.system(RELOAD_CMD)
-	print((b"done(%s) %s -> %s" % (serial, old_addr, addr)).decode("utf8"))
+	print((b"done(%s) %s -> %s" % (serial, old_val, val)).decode("utf8"))
 
 if __name__ == "__main__":
 	try:
 		if len(sys.argv) < 4:
-			raise Exception("usage: nsd-upd.py hostname (ipaddr|'src') zone_file")
+			raise Exception("usage: nsd-upd.py hostname (ipaddr|'src'|txt=val) zone_file")
+
 		main(sys.argv[1], sys.argv[2], sys.argv[3])
 		sys.exit(0)
 
