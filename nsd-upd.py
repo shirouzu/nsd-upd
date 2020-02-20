@@ -19,7 +19,7 @@ def new_serial(old_s):
 		new_s = b'%10d' % (cur_val + 1)
 	return new_s
 
-def main(name, val, zone):
+def main(zone, name="", val=""):
 	if val == "src":
 		rec = b'A'
 		val = os.environ["SSH_CONNECTION"].split()[0]
@@ -29,7 +29,7 @@ def main(name, val, zone):
 	elif val.find(":") >= 0:
 		rec = b'AAAA'
 		socket.inet_pton(socket.AF_INET6, val) # verify only
-	else:
+	elif name != "":
 		rec = b'A'
 		socket.inet_pton(socket.AF_INET, val) # verify only
 
@@ -47,16 +47,20 @@ def main(name, val, zone):
 	d = serial_re.sub(rb'\g<1>%s\g<3>' % serial, d, 1)
 
 	# ターゲット検索
-	dyn_re = re.compile(rb'(\n%s[ \t]+[ \t0-9]*IN[ \t]+%s[ \t]+)([0-9a-z.:_\-]+)([^\n]*\n)' % (re.escape(name), rec), re.I)
-	m = dyn_re.search(d)
-	if not m:
-		raise Exception("host not found")
+	if name:
+		dyn_re = re.compile(rb'(\n%s[ \t]+[ \t0-9]*IN[ \t]+%s[ \t]+)([0-9a-z.:_\-]+)([^\n]*\n)' % (re.escape(name), rec), re.I)
+		m = dyn_re.search(d)
+		if not m:
+			raise Exception("host not found")
 
-	old_val = m.groups()[1]
-	if old_val == val:
-		raise Exception("not modified")
+		old_val = m.groups()[1]
+		if old_val == val:
+			raise Exception("not modified")
 
-	d = dyn_re.sub(rb'\g<1>%s\g<3>' % val, d, 1)
+		d = dyn_re.sub(rb'\g<1>%s\g<3>' % val, d, 1)
+	else:
+		old_val = m.groups()[1]
+		val = serial
 
 	open(zone, "wb").write(d)
 	if RELOAD_CMD:
@@ -65,10 +69,13 @@ def main(name, val, zone):
 
 if __name__ == "__main__":
 	try:
-		if len(sys.argv) < 4:
-			raise Exception("usage: nsd-upd.py hostname (ipaddr|'src'|txt=val) zone_file")
+		if len(sys.argv) < 2 or not os.access(sys.argv[-1], os.F_OK):
+			raise Exception("usage: nsd-upd.py [hostname (ipaddr|'src'|txt=val)] zone_file")
 
-		main(sys.argv[1], sys.argv[2], sys.argv[3])
+		if len(sys.argv) == 2:
+			main(sys.argv[-1])
+		else:
+			main(sys.argv[-1], sys.argv[1], sys.argv[2])
 		sys.exit(0)
 
 	except Exception as e:
