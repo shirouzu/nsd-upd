@@ -25,7 +25,7 @@ certbotでワイルドカード対応したい場合、TXTレコード更新が�
  _acme-challenge.ipmsg.org.  10  IN  TXT  dummy_value<br>
 
 2. certbotでdns利用で更新リクエストを出すと TXTレコードにセットすべき値が表示されて待ち状態になるので、下記を実行します。<br>
- nsd-upd.py _acme-challenge.ipmsg.org. txt=(value) /etc/nsd/zones/(zone-file)<br>
+ % nsd-upd.py _acme-challenge.ipmsg.org. txt=(value) /etc/nsd/zones/(zone-file)<br>
 この後に、certbotの実行を継続すればOK。
 
 3. 自動化するには upd-txt.sh といった名前で下記のような内容のscriptを作っておき、certbotの --manual-auth-hook に指定すればOK。<br>
