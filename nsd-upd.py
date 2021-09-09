@@ -154,7 +154,13 @@ if __name__ == "__main__":
 		if len(sys.argv) < 2 or not os.access(sys.argv[-1], os.F_OK):
 			raise Exception(USAGE)
 
-		if   sys.argv[1] == "--add":
+		if len(sys.argv) == 2 and os.path.isdir(sys.argv[1]):
+			for f in os.listdir(sys.argv[1]):
+				zone = os.path.join(sys.argv[1], f)
+				if os.path.isfile(zone):
+					modify_rec(zone)
+
+		elif sys.argv[1] == "--add":
 			add_rec(sys.argv[2], sys.argv[3])
 		elif sys.argv[1] == "--del":
 			del_rec(sys.argv[2], sys.argv[3])
